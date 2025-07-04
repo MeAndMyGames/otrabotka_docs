@@ -1,42 +1,56 @@
+п»ї// Assets/Scripts/Systems/ChunkInstance.cs
 using UnityEngine;
+using Otrabotka.Level.Configs;
 
 namespace Otrabotka.Systems
 {
+    [DisallowMultipleComponent]
     public class ChunkInstance : MonoBehaviour
     {
-        [Tooltip("ID связанного события")]
-        public int EventId;
+        public int EventId { get; private set; }
+        public int TemplateIndex { get; private set; }
+        public ChunkConfig Config { get; private set; }
+        public bool HasSecondaryState => Config.secondaryPrefab != null;
 
-        [Tooltip("Префаб, используемый до события")]
-        public GameObject PrimaryPrefab;
-
-        [Tooltip("Префаб, заменяющий PrimaryPrefab после провала")]
-        public GameObject SecondaryPrefab;
-
-        // Флаг — есть ли у нас 'после'-стейт
-        public bool HasSecondaryState => SecondaryPrefab != null;
-
-        // Хранит текущий визуальный объект чанка
+        private Transform _entryPoint;
+        private Transform _exitPoint;
         private GameObject _currentVisual;
 
-        private void Awake()
+        public void Init(ChunkConfig config, int eventId, int templateIndex)
         {
-            // При старте присвоим currentVisual первичный префаб
-            if (PrimaryPrefab != null)
-            {
-                _currentVisual = Instantiate(PrimaryPrefab, transform);
-            }
-        }
+            Config = config;
+            EventId = eventId;
+            TemplateIndex = templateIndex;
 
-        /// <summary>
-        /// Удаляет текущее визуальное представление и ставит SecondaryPrefab.
-        /// </summary>
-        public void ApplySecondaryPrefab()
-        {
+            // РёС‰РµРј С‚РѕС‡РєРё РІРЅСѓС‚СЂРё РёРµСЂР°СЂС…РёРё
+            _entryPoint = transform.Find("entryPoint");
+            _exitPoint = transform.Find("exitPoint");
+
+            // СЃРѕР·РґР°С‘Рј primary-РІРёР·СѓР°Р»
             if (_currentVisual != null)
                 Destroy(_currentVisual);
 
-            _currentVisual = Instantiate(SecondaryPrefab, transform);
+            if (Config.primaryPrefab != null)
+                _currentVisual = Instantiate(Config.primaryPrefab, transform);
+        }
+
+        public Vector3 GetEntryWorldPosition() =>
+            _entryPoint != null ? _entryPoint.position : transform.position;
+
+        public Vector3 GetExitWorldPosition() =>
+            _exitPoint != null ? _exitPoint.position : transform.position;
+
+        public Quaternion GetExitWorldRotation() =>
+            _exitPoint != null ? _exitPoint.rotation : transform.rotation;
+
+        public void ApplySecondaryPrefab()
+        {
+            if (!HasSecondaryState) return;
+
+            if (_currentVisual != null)
+                Destroy(_currentVisual);
+
+            _currentVisual = Instantiate(Config.secondaryPrefab, transform);
         }
     }
 }

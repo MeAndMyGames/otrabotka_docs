@@ -13,8 +13,12 @@ namespace Otrabotka.Configs
         [Tooltip("Час старта дня (0–24)")]
         public float startHour = 6f;
 
-        [Header("Настройки генератора чанков")]
-        [Tooltip("Список стартовых чанков для генерации уровня в этот день")]
+        [Header("Сценарий дня")]
         public List<ChunkConfig> startChunks;
+
+        [Header("Пороги для спавна/деспавна чанков")]
+        public float spawnDistance = 10f;
+        public float despawnDistance = 15f;
     }
 }
+    

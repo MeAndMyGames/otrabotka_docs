@@ -1,54 +1,64 @@
-using UnityEngine;
+п»їusing UnityEngine;
 using System.Collections.Generic;
-
-// Core
-using Otrabotka.Core;       // ManagerBase, ServiceLocator
-using Otrabotka.Configs;    // DayCycleSettings
-using Otrabotka.Interfaces; // ITimeShifter
-using Otrabotka.Systems;    // ChunkManager, ChunkInstance
-using Otrabotka.Level;      // ChunkTemplateBuffer
+using Otrabotka.Core;        // ServiceLocator, ManagerBase
+using Otrabotka.Configs;     // DayCycleSettings
+using Otrabotka.Interfaces;  // ITimeShifter
+using Otrabotka.Systems;     // ChunkManager, ChunkInstance
+using Otrabotka.Level;       // ChunkTemplateBuffer
 
 namespace Otrabotka.Level
 {
     [DisallowMultipleComponent]
     public class ChunkSpawner : ManagerBase
     {
-        [Header("Источник настроек и шаблон")]
+        [Header("РСЃС‚РѕС‡РЅРёРє РґР°РЅРЅС‹С…")]
         [SerializeField] private DayCycleSettings daySettings;
         [SerializeField] private ChunkTemplateBuffer templateBuffer;
 
-        [Header("Псевдо-движение")]
-        [SerializeField] private Transform referencePoint; // обычно Camera.main.transform
+        [Header("РљРѕРЅС‚РµР№РЅРµСЂ С‡Р°РЅРєРѕРІ")]
+        [SerializeField] private Transform chunksParent;
+
+        [Header("РџСЃРµРІРґРѕ-РґРІРёР¶РµРЅРёРµ")]
+        [SerializeField] private Transform referencePoint; // РЅР°РїСЂРёРјРµСЂ, Test_ReferencePoint.CharacterTarget
         [SerializeField] private float scrollSpeed = 5f;
 
-        [Header("Буфер чанков")]
+        [Header("РџРѕР·РёС†РёРѕРЅРёСЂРѕРІР°РЅРёРµ С‡Р°РЅРєРѕРІ")]
+        [Tooltip("РЎРґРІРёРі РѕС‚ С‚РѕС‡РєРё ReferencePoint РёР»Рё РѕС‚ РїСЂРµРґС‹РґСѓС‰РµРіРѕ С‡Р°РЅРєР°")]
+        [SerializeField] private Vector3 spawnOffset = new Vector3(10f, 0f, 0f);
+        [Tooltip("РџРѕРІРѕСЂРѕС‚ С‡Р°РЅРєР° РїСЂРё РёРЅСЃС‚Р°РЅС†РёРёСЂРѕРІР°РЅРёРё")]
+        [SerializeField] private Vector3 spawnRotationEuler = Vector3.zero;
+
+        [Header("Р‘СѓС„РµСЂ С‡Р°РЅРєРѕРІ")]
         [SerializeField] private int bufferAhead = 5;
         [SerializeField] private int bufferBehind = 2;
 
         private ITimeShifter _timeShifter;
         private ChunkManager _chunkManager;
-        private LinkedList<ChunkInstance> _active = new LinkedList<ChunkInstance>();
+        private List<ChunkInstance> _active = new List<ChunkInstance>();
+        private int _templateIndex;
 
         public override void Initialize()
         {
-            // 1) Получаем сервисы
+            // 1) РџРѕР»СѓС‡Р°РµРј СЃРµСЂРІРёСЃС‹ (С‚РµРїРµСЂСЊ, РїРѕСЃР»Рµ РїСЂР°РІРєРё РІ ChunkManager Рё MissionTimer, РѕРЅРё РµСЃС‚СЊ)
             _timeShifter = ServiceLocator.Get<ITimeShifter>();
             _chunkManager = ServiceLocator.Get<ChunkManager>();
 
-            // 2) Генерируем линейный шаблон чанков
+            // 2) Р“РµРЅРµСЂРёСЂСѓРµРј С€Р°Р±Р»РѕРЅ РѕРґРёРЅ СЂР°Р· Р·Р° В«РґРµРЅСЊВ»
             templateBuffer.GenerateTemplate(daySettings);
 
-            // 3) Спавним начальное окно чанков [0…bufferAhead]
-            for (int i = 0; i <= bufferAhead; i++)
-                SpawnAt(i);
+            // 3) РЎРїР°РІРЅРёРј РїРµСЂРІСѓСЋ РІРѕР»РЅСѓ С‡Р°РЅРєРѕРІ: [0] Рё РґР°Р»РµРµ bufferAhead С€С‚СѓРє
+            _templateIndex = 0;
+            SpawnAt(_templateIndex);
+            for (int i = 1; i <= bufferAhead; i++)
+                SpawnNext();
         }
 
         public override void Tick(float deltaTime)
         {
-            // 1) Сдвигаем «время» (если у вас временной шифтер крутит освещение и дату)
+            // 1) РљСЂСѓС‚РёР»РєР° В«РјРёСЂР°В» (РѕСЃРІРµС‰РµРЅРёРµ, С‚Р°Р№РјРµСЂС‹ Рё С‚.Рї.)
             _timeShifter.ShiftTime(deltaTime);
 
-            // 2) Сдвигаем все чанки «назад» относительно камеры
+            // 2) РЎРґРІРёРіР°РµРј РІСЃРµ Р°РєС‚РёРІРЅС‹Рµ С‡Р°РЅРєРё В«РЅР°Р·Р°РґВ» РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РєР°РјРµСЂС‹
             float shift = scrollSpeed * deltaTime;
             foreach (var inst in _active)
                 inst.transform.Translate(-shift, 0, 0, Space.World);
@@ -56,21 +66,25 @@ namespace Otrabotka.Level
             if (_active.Count == 0)
                 return;
 
-            // 3) Спавн нового чанка, когда последний «подкатился» к камере ближе, чем на длину одного чанка
-            var last = _active.Last.Value;
-            float spawnThreshold = referencePoint.position.x + daySettings.startHour; //пример: можно завести отдельную переменную spawnDistance
-            if (last.transform.position.x < spawnThreshold)
+            // 3) РЎРїР°РІРЅРёРј РЅРѕРІС‹Р№ С‡Р°РЅРє, РєРѕРіРґР° РїРѕСЃР»РµРґРЅРёР№ РїРѕРґРѕС€С‘Р» СЃР»РёС€РєРѕРј Р±Р»РёР·РєРѕ
+            var last = _active[_active.Count - 1];
+            if (last.transform.position.x < referencePoint.position.x + spawnOffset.x)
                 SpawnNext();
 
-            // 4) Деспавн самого старого чанка, когда он ушёл далеко за камеру
-            var first = _active.First.Value;
-            float despawnThreshold = referencePoint.position.x - daySettings.startHour; //пример: despawnDistance
-            if (first.transform.position.x < despawnThreshold)
+            // 4) РЈРґР°Р»СЏРµРј СЃР°РјС‹Р№ СЃС‚Р°СЂС‹Р№ С‡Р°РЅРє, РєРѕРіРґР° РѕРЅ СѓС€С‘Р» РґР°Р»РµРєРѕ Р·Р° РєР°РјРµСЂРѕР№
+            //    (РјРѕР¶РЅРѕ РґРµСЂР¶Р°С‚СЊ bufferBehind С€С‚СѓРє РїРѕР·Р°РґРё, РµСЃР»Рё bufferBehind>0)
+            while (_active.Count > bufferAhead + bufferBehind + 1)
+                DespawnFirst();
+
+            // Р”РѕРїРѕР»РЅРёС‚РµР»СЊРЅРѕ: РµСЃР»Рё РїРµСЂРІС‹Р№ С‡Р°РЅРє РїСЂРѕС€С‘Р» Р·Р° РїРѕСЂРѕРі X - РјРѕР¶РЅРѕ С‚РѕР¶Рµ СЃСЂР°Р·Сѓ СѓРґР°Р»СЏС‚СЊ
+            var first = _active[0];
+            if (first.transform.position.x < referencePoint.position.x - spawnOffset.x)
                 DespawnFirst();
         }
 
         public override void Shutdown()
         {
+            // Р§РёСЃС‚РёРј РІСЃС‘
             foreach (var inst in _active)
                 Destroy(inst.gameObject);
             _active.Clear();
@@ -78,11 +92,10 @@ namespace Otrabotka.Level
 
         private void SpawnNext()
         {
-            int nextIndex = _active.Count == 0
-                ? 0
-                : Mathf.Min(templateBuffer.Template.Length - 1,
-                            _active.Count);
-            SpawnAt(nextIndex);
+            if (_templateIndex >= templateBuffer.Template.Length - 1)
+                return;
+            _templateIndex++;
+            SpawnAt(_templateIndex);
         }
 
         private void SpawnAt(int templateIndex)
@@ -90,34 +103,46 @@ namespace Otrabotka.Level
             var cfg = templateBuffer.Template[templateIndex];
             if (cfg == null) return;
 
-            // 1) Инстанцируем префаб
-            var go = Instantiate(cfg.primaryPrefab);
-            var inst = go.GetComponent<ChunkInstance>();
+            // 1) РРЅСЃС‚Р°РЅС†РёСЂСѓРµРј РїСЂРµС„Р°Р± С‡Р°РЅРєР°
+            var go = Instantiate(
+                cfg.primaryPrefab,
+                Vector3.zero,
+                Quaternion.Euler(spawnRotationEuler),
+                chunksParent
+            );
 
-            // 2) Регистрируем его у ChunkManager
-            _chunkManager.RegisterChunkInstance(inst);
-
-            // 3) Позиционируем: либо на камере, либо сразу за последним чанком
+            // 2) РџРѕР·РёС†РёРѕРЅРёСЂСѓРµРј:
             if (_active.Count == 0)
             {
-                go.transform.position = referencePoint.position;
+                // РїРµСЂРІС‹Р№ С‡Р°РЅРє РѕС‚ ReferencePoint
+                go.transform.position = referencePoint.position + spawnOffset;
             }
             else
             {
-                var prev = _active.Last.Value;
-                // Для простоты сдвигаем на ширину какого-то параметра;
-                // лучше привязать в будущем entry/exit-точки.
-                float offset = prev.GetComponent<Renderer>().bounds.size.x;
-                go.transform.position = prev.transform.position + Vector3.right * offset;
+                // РґР°Р»РµРµ вЂ” РѕС‚РЅРѕСЃРёС‚РµР»СЊРЅРѕ РїРѕСЃР»РµРґРЅРµРіРѕ
+                var prev = _active[_active.Count - 1];
+                go.transform.position = prev.transform.position + spawnOffset;
             }
 
-            _active.AddLast(inst);
+            // 3) Р РµРіРёСЃС‚СЂРёСЂСѓРµРј Рё РґРѕР±Р°РІР»СЏРµРј РІ РЅР°С€ СЃРїРёСЃРѕРє
+            var inst = go.GetComponent<ChunkInstance>();
+            if (inst != null)
+            {
+                _chunkManager.RegisterChunkInstance(inst);
+                _active.Add(inst);
+            }
+            else
+            {
+                Debug.LogError($"ChunkSpawner: Сѓ РїСЂРµС„Р°Р±Р° {go.name} РЅРµС‚ РєРѕРјРїРѕРЅРµРЅС‚Р° ChunkInstance!");
+                Destroy(go);
+            }
         }
 
         private void DespawnFirst()
         {
-            var inst = _active.First.Value;
-            _active.RemoveFirst();
+            if (_active.Count == 0) return;
+            var inst = _active[0];
+            _active.RemoveAt(0);
             Destroy(inst.gameObject);
         }
     }
