@@ -1,8 +1,8 @@
-// Assets/Scripts/Level/ChunkTemplateBuffer.cs
 using System;
 using System.Collections.Generic;
-using Otrabotka.Configs;
+using System.Linq;
 using UnityEngine;
+using Otrabotka.Configs;
 using Otrabotka.Level.Configs;
 
 namespace Otrabotka.Level
@@ -19,7 +19,7 @@ namespace Otrabotka.Level
         [SerializeField] private int templateLength = 100;
 
         public int Seed { get; private set; }
-        public ChunkConfig[] Template { get; private set; }
+        public List<ChunkConfig> Template { get; private set; }
 
         private void Awake()
         {
@@ -37,49 +37,47 @@ namespace Otrabotka.Level
         /// </summary>
         public void GenerateTemplate(DayCycleSettings daySettings)
         {
-            var startList = daySettings.startChunks;
-            if (startList == null || startList.Count == 0)
-            {
-                Debug.LogError("ChunkTemplateBuffer: в DayCycleSettings.startChunks нет ни одного ChunkConfig!");
-                return;
-            }
-
             // Create a reproducible random sequence
             Seed = UnityEngine.Random.Range(int.MinValue, int.MaxValue);
             var rnd = new System.Random(Seed);
 
-            Template = new ChunkConfig[templateLength];
+            Template = new List<ChunkConfig>(templateLength);
+
             // pick a random start chunk
-            Template[0] = startList[rnd.Next(startList.Count)];
+            var startList = daySettings.startChunks;
+            if (startList == null || startList.Count == 0)
+            {
+                Debug.LogError("DayCycleSettings.startChunks пуст! Генерация невозможна.");
+                return;
+            }
+            Template.Add(startList[rnd.Next(startList.Count)]);
 
             // build the rest of the sequence by walking the allowedNext graph
             for (int i = 1; i < templateLength; i++)
             {
                 var prev = Template[i - 1];
-                var candidates = prev.allowedNext;
-
-                // защита: если нет allowedNext, повторяем предыдущий чанк
-                if (candidates == null || candidates.Count == 0)
-                {
-                    Template[i] = prev;
-                    continue;
-                }
-
-                Template[i] = PickByWeight(candidates, rnd);
+                var candidates = prev.allowedNext?.ToList();
+                Template.Add(PickByWeight(candidates, rnd, prev));
             }
         }
 
-        private ChunkConfig PickByWeight(List<ChunkConfig> list, System.Random rnd)
+        /// <summary>
+        /// Выбирает случайный элемент по весам. 
+        /// Если список пуст или null — возвращает previousChunk.
+        /// </summary>
+        private ChunkConfig PickByWeight(List<ChunkConfig> list, System.Random rnd, ChunkConfig previousChunk)
         {
-            float total = 0f;
-            foreach (var cfg in list)
-                total += cfg.weight;
+            if (list == null || list.Count == 0)
+            {
+                Debug.LogWarning($"ChunkTemplateBuffer: allowedNext пуст для {previousChunk.name}, возвращаем его самого.");
+                return previousChunk;
+            }
 
-            // если всё же total == 0, просто вернём первый
-            if (total <= 0f)
-                return list[0];
-
+            // вычисляем сумму весов
+            float total = list.Sum(cfg => cfg.weight);
+            // случайное значение от 0 до total
             float sample = (float)rnd.NextDouble() * total;
+
             float accum = 0f;
             foreach (var cfg in list)
             {
@@ -87,7 +85,7 @@ namespace Otrabotka.Level
                 if (sample <= accum)
                     return cfg;
             }
-            // fallback на последний
+            // на всякий случай
             return list[list.Count - 1];
         }
     }

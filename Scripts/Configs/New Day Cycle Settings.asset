@@ -38,4 +38,6 @@ MonoBehaviour:
     m_RotationOrder: 4
   startHour: 6
   startChunks:
-  - {fileID: 11400000, guid: d45186b499ffc8448a906f5517666cdd, type: 2}
+  - {fileID: 11400000, guid: 9f8cf2dacaf3842428cc8cac8fa7f9bd, type: 2}
+  spawnDistance: 10
+  despawnDistance: -10

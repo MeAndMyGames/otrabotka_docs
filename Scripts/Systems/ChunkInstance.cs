@@ -1,56 +1,46 @@
-﻿// Assets/Scripts/Systems/ChunkInstance.cs
-using UnityEngine;
-using Otrabotka.Level.Configs;
+﻿using UnityEngine;
+using Otrabotka.Level.Configs; // для ChunkConfig
 
 namespace Otrabotka.Systems
 {
-    [DisallowMultipleComponent]
     public class ChunkInstance : MonoBehaviour
     {
         public int EventId { get; private set; }
-        public int TemplateIndex { get; private set; }
         public ChunkConfig Config { get; private set; }
-        public bool HasSecondaryState => Config.secondaryPrefab != null;
+        public GameObject PrimaryPrefab { get; private set; }
+        public GameObject SecondaryPrefab { get; private set; }
 
-        private Transform _entryPoint;
-        private Transform _exitPoint;
         private GameObject _currentVisual;
 
-        public void Init(ChunkConfig config, int eventId, int templateIndex)
+        /// <summary>
+        /// Инициализирует чанк: запоминает префабы и создаёт визуал.
+        /// </summary>
+        public void Init(ChunkConfig cfg, int eventId, GameObject secondaryPrefab)
         {
-            Config = config;
+            Config = cfg;
             EventId = eventId;
-            TemplateIndex = templateIndex;
+            PrimaryPrefab = cfg.primaryPrefab;
+            SecondaryPrefab = secondaryPrefab;
 
-            // ищем точки внутри иерархии
-            _entryPoint = transform.Find("entryPoint");
-            _exitPoint = transform.Find("exitPoint");
-
-            // создаём primary-визуал
+            // убираем старый визуал, если есть
             if (_currentVisual != null)
                 Destroy(_currentVisual);
 
-            if (Config.primaryPrefab != null)
-                _currentVisual = Instantiate(Config.primaryPrefab, transform);
+            // создаём начальный визуал
+            if (PrimaryPrefab != null)
+                _currentVisual = Instantiate(PrimaryPrefab, transform);
         }
 
-        public Vector3 GetEntryWorldPosition() =>
-            _entryPoint != null ? _entryPoint.position : transform.position;
-
-        public Vector3 GetExitWorldPosition() =>
-            _exitPoint != null ? _exitPoint.position : transform.position;
-
-        public Quaternion GetExitWorldRotation() =>
-            _exitPoint != null ? _exitPoint.rotation : transform.rotation;
-
-        public void ApplySecondaryPrefab()
+        /// <summary>
+        /// Меняет визуал на вторичный
+        /// </summary>
+        public void ApplySecondaryPrefab(GameObject secondaryPrefab)
         {
-            if (!HasSecondaryState) return;
-
             if (_currentVisual != null)
                 Destroy(_currentVisual);
 
-            _currentVisual = Instantiate(Config.secondaryPrefab, transform);
+            if (secondaryPrefab != null)
+                _currentVisual = Instantiate(secondaryPrefab, transform);
         }
     }
 }
