@@ -26,9 +26,7 @@ namespace Otrabotka.Systems
             if (_currentVisual != null)
                 Destroy(_currentVisual);
 
-            // создаём начальный визуал
-            if (PrimaryPrefab != null)
-                _currentVisual = Instantiate(PrimaryPrefab, transform);
+            // удалено: автоматическое создание PrimaryPrefab, визуал создается в ChunkSpawner
         }
 
         /// <summary>

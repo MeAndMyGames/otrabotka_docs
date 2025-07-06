@@ -13,10 +13,10 @@ MonoBehaviour:
   m_Name: Chunk_1
   m_EditorClassIdentifier: 
   primaryPrefab: {fileID: 6566703901031180767, guid: 9ab7c6bec28784c449f1b714d7eacfb4, type: 3}
-  secondaryPrefab: {fileID: 6566703901031180767, guid: 9ab7c6bec28784c449f1b714d7eacfb4, type: 3}
+  secondaryPrefab: {fileID: 0}
   entryPointName: entryPoint
   exitPointName: exitPoint
-  spawnOffset: {x: 0, y: 0, z: 0}
+  spawnOffset: {x: 0, y: 0, z: 2.17}
   spawnRotationEuler: {x: 0, y: 180, z: 0}
   allowedNext: []
   weight: 1

@@ -62,67 +62,113 @@ namespace Otrabotka.Level
 
         public override void Tick(float deltaTime)
         {
-            // 1) Сдвигаем «мир» (освещение, часы и т.п.)
-            _timeShifter.ShiftTime(deltaTime);
-
-            // 2) Сдвигаем все чанки навстречу камере
+            // 1) Сдвигаем все чанки навстречу камере
             float shift = scrollSpeed * deltaTime;
-            foreach (var inst in _active)
-                inst.transform.Translate(-shift, 0, 0, Space.World);
+            var activeChunks = new List<ChunkInstance>(_active);
+            foreach (var inst in activeChunks)
+            {
+                if (inst != null && inst.transform != null)
+                {
+                    inst.transform.Translate(-shift, 0, 0, Space.World);
+                }
+            }
 
             if (_active.Count == 0) return;
 
-            // 3) Спавн нового чанка
+            // 2) Спавн нового чанка по ExitPoint
             var last = _active.Last.Value;
+            Transform lastExit = FindDeepChild(last.transform, last.Config.exitPointName);
             float spawnThresh = referencePoint.position.x + spawnDistance;
-            if (last.transform.position.x < spawnThresh)
+            if ((lastExit != null && lastExit.position.x < spawnThresh) ||
+                (lastExit == null && last.transform.position.x < spawnThresh))
+            {
                 Advance(1);
+            }
 
-            // 4) Деспавн старого чанка
+            // 3) Деспавн старого чанка по EntryPoint
             var first = _active.First.Value;
+            Transform firstEntry = FindDeepChild(first.transform, first.Config.entryPointName);
             float despawnThresh = referencePoint.position.x - despawnDistance;
-            if (first.transform.position.x < despawnThresh)
+            if ((firstEntry != null && firstEntry.position.x < despawnThresh) ||
+                (firstEntry == null && first.transform.position.x < despawnThresh))
+            {
                 Advance(-1);
+            }
         }
 
         public override void Shutdown()
         {
             // Убираем всё по завершении
-            foreach (var inst in _active)
-                Destroy(inst.gameObject);
+            var chunksToDestroy = new List<ChunkInstance>(_active);
+            foreach (var inst in chunksToDestroy)
+            {
+                if (inst != null && inst.gameObject != null)
+                {
+                    Destroy(inst.gameObject);
+                }
+            }
             _active.Clear();
         }
 
         // Двигаем окно вперед или назад на 1 индекс
         private void Advance(int dir)
         {
-            int old = _currentIndex;
-            _currentIndex = Mathf.Clamp(_currentIndex + dir, 0, templateBuffer.Template.Count - 1);
-
             if (dir > 0)
             {
                 // спавним впереди
-                int spawnIdx = _currentIndex + bufferAhead;
+                int spawnIdx = _currentIndex + bufferAhead + 1;
                 if (spawnIdx < templateBuffer.Template.Count)
+                {
                     SpawnAt(spawnIdx);
-
-                // деспавним позади
-                int despawnIdx = old - bufferBehind;
-                if (despawnIdx >= 0)
-                    DespawnAt(despawnIdx);
+                    DespawnOldest();
+                    _currentIndex++;
+                }
             }
-            else
+            else if (dir < 0)
             {
-                // спавним позади, если возвращаемся назад
-                int spawnIdx = _currentIndex - bufferBehind;
+                // спавним позади
+                int spawnIdx = _currentIndex - bufferBehind - 1;
                 if (spawnIdx >= 0)
+                {
                     SpawnAt(spawnIdx);
-
-                // деспавним впереди
-                int despawnIdx = old + bufferAhead;
-                if (despawnIdx < templateBuffer.Template.Count)
-                    DespawnAt(despawnIdx);
+                    DespawnNewest();
+                    _currentIndex--;
+                }
             }
+        }
+
+        // Дестрой самого первого элемента
+        private void DespawnOldest()
+        {
+            if (_active.Count == 0) return;
+            var node = _active.First;
+            if (node.Value != null)
+                Destroy(node.Value.gameObject);
+            _active.RemoveFirst();
+        }
+
+        // Дестрой самого последнего элемента
+        private void DespawnNewest()
+        {
+            if (_active.Count == 0) return;
+            var node = _active.Last;
+            if (node.Value != null)
+                Destroy(node.Value.gameObject);
+            _active.RemoveLast();
+        }
+
+        // Рекурсивный поиск Transform по имени
+        private Transform FindDeepChild(Transform parent, string name)
+        {
+            foreach (Transform child in parent)
+            {
+                if (child.name == name)
+                    return child;
+                var result = FindDeepChild(child, name);
+                if (result != null)
+                    return result;
+            }
+            return null;
         }
 
         // Инстанцирует чанк по индексу шаблона
@@ -139,17 +185,52 @@ namespace Otrabotka.Level
             Debug.Log($"[SpawnAt] index={index}, cfg={(cfg == null ? "NULL" : cfg.name)}, primaryPrefab={(cfg.primaryPrefab == null ? "NULL" : "OK")}");
             Debug.Log($" referencePoint={(referencePoint == null ? "NULL" : referencePoint.name)}, chunksParent={(chunksParent == null ? "NULL" : chunksParent.name)}");
 
-            // 2) Инстанцируем пустой контейнер чанка
-            var go = new GameObject($"Chunk[{index}]");
-            go.transform.SetParent(chunksParent, false);
-            go.transform.position = referencePoint.position + spawnOffset;
-            go.transform.rotation = Quaternion.Euler(spawnRotationEuler);
+            // 2) Создаём контейнер чанка
+            var container = new GameObject($"Chunk[{index}]");
+            container.transform.SetParent(chunksParent, false);
+            if (_active.Count == 0)
+            {
+                // первый чанк — от позиции контейнера
+                container.transform.position = chunksParent.position + cfg.spawnOffset;
+            }
+            else
+            {
+                // остальные чанки — от referencePoint
+                container.transform.position = referencePoint.position + cfg.spawnOffset;
+            }
+            // контейнер остаётся без дополнительного поворота
+            container.transform.rotation = chunksParent.rotation;
 
-            // 3) Добавляем компонент и инициализируем
-            var inst = go.AddComponent<ChunkInstance>();
+            // 3) Инстанцируем prefab как дочерний объект контейнера с локальной позицией и нужным поворотом из конфига
+            var prefabGo = Instantiate(cfg.primaryPrefab, Vector3.zero, Quaternion.Euler(cfg.spawnRotationEuler), container.transform);
+            prefabGo.name = cfg.primaryPrefab.name;
+
+            // 4) Добавляем компонент и инициализируем
+            var inst = container.AddComponent<ChunkInstance>();
             inst.Init(cfg, index, cfg.secondaryPrefab);
 
-            // 4) Регистрируем
+            // --- Стыковка по entry/exit точкам ---
+            if (_active.Count > 0)
+            {
+                var prevChunk = _active.Last.Value;
+                if (prevChunk != null)
+                {
+                    var prevExit = FindDeepChild(prevChunk.transform, "exitPoint");
+                    var newEntry = FindDeepChild(prefabGo.transform, "entryPoint");
+                    if (prevExit != null && newEntry != null)
+                    {
+                        Vector3 offset = prevExit.position - newEntry.position;
+                        container.transform.position += offset;
+                    }
+                    else
+                    {
+                        Debug.LogWarning($"[ChunkSpawner] Не найдены entryPoint или exitPoint для стыковки чанков! index={index}");
+                    }
+                }
+            }
+            // --- конец стыковки ---
+
+            // 5) Регистрируем
             _chunkManager.RegisterChunkInstance(inst);
             _active.AddLast(inst);
         }
@@ -161,9 +242,12 @@ namespace Otrabotka.Level
             while (node != null)
             {
                 var next = node.Next;
-                if (node.Value.Config == templateBuffer.Template[idx])
+                if (node.Value != null && node.Value.Config == templateBuffer.Template[idx])
                 {
-                    Destroy(node.Value.gameObject);
+                    if (node.Value.gameObject != null)
+                    {
+                        Destroy(node.Value.gameObject);
+                    }
                     _active.Remove(node);
                     break;
                 }

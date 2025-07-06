@@ -16,7 +16,7 @@ MonoBehaviour:
   - DayNumber: 1
     Sequence:
     - Id: 1001
-      Duration: 2
+      Duration: 1000
       ResultData: '"result"'
       HasSecondaryState: 0
       TimeShiftOnFail: 2
