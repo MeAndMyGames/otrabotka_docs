@@ -47,7 +47,7 @@ namespace Otrabotka.Level
             var startList = daySettings.startChunks;
             if (startList == null || startList.Count == 0)
             {
-                Debug.LogError("DayCycleSettings.startChunks пуст! Генерация невозможна.");
+                Debug.LogError("DayCycleSettings.startChunks пїЅпїЅпїЅпїЅ! пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ.");
                 return;
             }
             Template.Add(startList[rnd.Next(startList.Count)]);
@@ -57,25 +57,31 @@ namespace Otrabotka.Level
             {
                 var prev = Template[i - 1];
                 var candidates = prev.allowedNext?.ToList();
+                if (candidates == null || candidates.Count == 0)
+                {
+                    // Р¤РѕР»Р»Р±РµРє РЅР° СЃС‚Р°СЂС‚РѕРІС‹Рµ С‡Р°РЅРєРё, РµСЃР»Рё Сѓ prev РЅРµС‚ allowedNext
+                    Debug.LogWarning($"ChunkTemplateBuffer: allowedNext РїСѓСЃС‚ РґР»СЏ {prev.name}, РёСЃРїРѕР»СЊР·СѓРµРј startChunks РІ РєР°С‡РµСЃС‚РІРµ РєР°РЅРґРёРґР°С‚РѕРІ.");
+                    candidates = daySettings.startChunks;
+                }
                 Template.Add(PickByWeight(candidates, rnd, prev));
             }
         }
 
         /// <summary>
-        /// Выбирает случайный элемент по весам. 
-        /// Если список пуст или null — возвращает previousChunk.
+        ///     . 
+        ///     null  previousChunk.
         /// </summary>
         private ChunkConfig PickByWeight(List<ChunkConfig> list, System.Random rnd, ChunkConfig previousChunk)
         {
             if (list == null || list.Count == 0)
             {
-                Debug.LogWarning($"ChunkTemplateBuffer: allowedNext пуст для {previousChunk.name}, возвращаем его самого.");
+                Debug.LogWarning($"ChunkTemplateBuffer: allowedNext   {previousChunk.name},   .");
                 return previousChunk;
             }
 
-            // вычисляем сумму весов
+            //   
             float total = list.Sum(cfg => cfg.weight);
-            // случайное значение от 0 до total
+            //    0  total
             float sample = (float)rnd.NextDouble() * total;
 
             float accum = 0f;
@@ -85,7 +91,7 @@ namespace Otrabotka.Level
                 if (sample <= accum)
                     return cfg;
             }
-            // на всякий случай
+            //   
             return list[list.Count - 1];
         }
     }

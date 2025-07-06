@@ -21,6 +21,8 @@ namespace Otrabotka.Level
         [Header("Псевдо-движение мира")]
         [SerializeField] private Transform referencePoint;
         [SerializeField] private float scrollSpeed = 5f;
+        [Header("Настройка движения")]
+        [SerializeField] private bool autoScroll = true;
 
         [Header("Настройки спавна")]
         [SerializeField] private Vector3 spawnOffset = Vector3.zero;
@@ -62,8 +64,10 @@ namespace Otrabotka.Level
 
         public override void Tick(float deltaTime)
         {
-            // 1) Сдвигаем все чанки навстречу камере
-            float shift = scrollSpeed * deltaTime;
+            float input = Input.GetAxis("Horizontal");
+            float direction = Mathf.Abs(input) > 0f ? input : (autoScroll ? 1f : 0f);
+            float shift = scrollSpeed * direction * deltaTime;
+            Debug.Log($"[ChunkSpawner] Tick: direction={direction}, shift={shift:F2}, currentIndex={_currentIndex}, activeCount={_active.Count}");
             var activeChunks = new List<ChunkInstance>(_active);
             foreach (var inst in activeChunks)
             {
@@ -75,24 +79,33 @@ namespace Otrabotka.Level
 
             if (_active.Count == 0) return;
 
-            // 2) Спавн нового чанка по ExitPoint
-            var last = _active.Last.Value;
-            Transform lastExit = FindDeepChild(last.transform, last.Config.exitPointName);
-            float spawnThresh = referencePoint.position.x + spawnDistance;
-            if ((lastExit != null && lastExit.position.x < spawnThresh) ||
-                (lastExit == null && last.transform.position.x < spawnThresh))
+            if (direction > 0f)
             {
-                Advance(1);
+                Debug.Log("[ChunkSpawner] Tick: movement forward");
+                var last = _active.Last.Value;
+                Transform lastExit = FindDeepChild(last.transform, last.Config.exitPointName);
+                float spawnThresh = referencePoint.position.x + spawnDistance;
+                Debug.Log($"[ChunkSpawner] Forward check: lastExitX={(lastExit!=null?lastExit.position.x.ToString("F2"):"NULL")}, spawnThresh={spawnThresh:F2}");
+                if ((lastExit != null && lastExit.position.x < spawnThresh) ||
+                    (lastExit == null && last.transform.position.x < spawnThresh))
+                {
+                    Debug.Log("[ChunkSpawner] Forward threshold passed, calling Advance(1)");
+                    Advance(1);
+                }
             }
-
-            // 3) Деспавн старого чанка по EntryPoint
-            var first = _active.First.Value;
-            Transform firstEntry = FindDeepChild(first.transform, first.Config.entryPointName);
-            float despawnThresh = referencePoint.position.x - despawnDistance;
-            if ((firstEntry != null && firstEntry.position.x < despawnThresh) ||
-                (firstEntry == null && first.transform.position.x < despawnThresh))
+            else if (direction < 0f)
             {
-                Advance(-1);
+                Debug.Log("[ChunkSpawner] Tick: movement backward");
+                var first = _active.First.Value;
+                Transform firstEntry = FindDeepChild(first.transform, first.Config.entryPointName);
+                float backSpawnThresh = referencePoint.position.x - spawnDistance;
+                Debug.Log($"[ChunkSpawner] Backward check: firstEntryX={(firstEntry!=null?firstEntry.position.x.ToString("F2"):"NULL")}, backSpawnThresh={backSpawnThresh:F2}");
+                if ((firstEntry != null && firstEntry.position.x > backSpawnThresh) ||
+                    (firstEntry == null && first.transform.position.x > backSpawnThresh))
+                {
+                    Debug.Log("[ChunkSpawner] Backward threshold passed, calling Advance(-1)");
+                    Advance(-1);
+                }
             }
         }
 
@@ -113,26 +126,30 @@ namespace Otrabotka.Level
         // Двигаем окно вперед или назад на 1 индекс
         private void Advance(int dir)
         {
+            Debug.Log($"[ChunkSpawner] Advance: dir={dir}, currentIndex(before)={_currentIndex}, bufferAhead={bufferAhead}, bufferBehind={bufferBehind}, templateCount={templateBuffer.Template.Count}");
             if (dir > 0)
             {
-                // спавним впереди
                 int spawnIdx = _currentIndex + bufferAhead + 1;
+                Debug.Log($"[ChunkSpawner] Advance forward: calculated spawnIdx={spawnIdx}");
                 if (spawnIdx < templateBuffer.Template.Count)
                 {
                     SpawnAt(spawnIdx);
                     DespawnOldest();
                     _currentIndex++;
+                    Debug.Log($"[ChunkSpawner] Advance forward complete: new currentIndex={_currentIndex}");
                 }
             }
             else if (dir < 0)
             {
-                // спавним позади
-                int spawnIdx = _currentIndex - bufferBehind - 1;
+                // симметричный спавн назад: берём предыдущий индекс
+                int spawnIdx = _currentIndex - 1;
+                Debug.Log($"[ChunkSpawner] Advance backward symmetric: calculated spawnIdx={spawnIdx}");
                 if (spawnIdx >= 0)
                 {
-                    SpawnAt(spawnIdx);
+                    SpawnBefore(spawnIdx);
                     DespawnNewest();
                     _currentIndex--;
+                    Debug.Log($"[ChunkSpawner] Advance backward complete: new currentIndex={_currentIndex}");
                 }
             }
         }
@@ -233,6 +250,45 @@ namespace Otrabotka.Level
             // 5) Регистрируем
             _chunkManager.RegisterChunkInstance(inst);
             _active.AddLast(inst);
+        }
+
+        // Симметричный спавн чанка позади существующих
+        private void SpawnBefore(int index)
+        {
+            var cfg = templateBuffer.Template[index];
+            if (cfg == null || cfg.primaryPrefab == null)
+                return;
+            Debug.Log($"[ChunkSpawner] SpawnBefore: index={index}, cfg={(cfg == null ? "NULL" : cfg.name)}");
+            // 1) Создаём контейнер чанка
+            var container = new GameObject($"Chunk[{index}]");
+            container.transform.SetParent(chunksParent, false);
+            container.transform.position = referencePoint.position + cfg.spawnOffset;
+            container.transform.rotation = Quaternion.Euler(cfg.spawnRotationEuler);
+            // 2) Инстанцируем визуал
+            var prefabGo = Instantiate(cfg.primaryPrefab, Vector3.zero, Quaternion.Euler(cfg.spawnRotationEuler), container.transform);
+            prefabGo.name = cfg.primaryPrefab.name;
+            // 3) Добавляем компонент и инициализируем
+            var inst = container.AddComponent<ChunkInstance>();
+            inst.Init(cfg, index, cfg.secondaryPrefab);
+            // 4) Стыковка назад: соединяем exit новой с entry первого
+            if (_active.Count > 0)
+            {
+                var firstChunk = _active.First.Value;
+                var firstEntry = FindDeepChild(firstChunk.transform, firstChunk.Config.entryPointName);
+                var newExit = FindDeepChild(prefabGo.transform, cfg.exitPointName);
+                if (firstEntry != null && newExit != null)
+                {
+                    Vector3 offset = firstEntry.position - newExit.position;
+                    container.transform.position += offset;
+                }
+                else
+                {
+                    Debug.LogWarning($"[ChunkSpawner] SpawnBefore: точки entry/exit не найдены для стыковки! index={index}");
+                }
+            }
+            // 5) Регистрируем и добавляем в начало списка
+            _chunkManager.RegisterChunkInstance(inst);
+            _active.AddFirst(inst);
         }
 
         // Удаляет из сцены и из списка чанк, чей Config == template[idx]

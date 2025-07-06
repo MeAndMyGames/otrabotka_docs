@@ -39,5 +39,7 @@ MonoBehaviour:
   startHour: 6
   startChunks:
   - {fileID: 11400000, guid: 9f8cf2dacaf3842428cc8cac8fa7f9bd, type: 2}
+  - {fileID: 11400000, guid: 9103f91cb69a72a499dae86794232973, type: 2}
+  - {fileID: 11400000, guid: 4cbd6c45f29086a41b5b510f419eb20a, type: 2}
   spawnDistance: 10
   despawnDistance: -10
