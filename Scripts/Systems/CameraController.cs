@@ -44,6 +44,10 @@ namespace Otrabotka.Systems
         [Tooltip("Duration of camera Z away movement (sec)")]
         [SerializeField] private float movementZDuration = 1f;
 
+        [Header("Height Response")]
+        [Tooltip("Смещение камеры вверх при zoom in (м)")]
+        [SerializeField] private float zoomHeight = 1.25f;
+
         [Header("Inertia")]
         [Tooltip("Enable inertial smoothing for all camera movements")]
         [SerializeField] private bool inertiaEnabled = false;
@@ -54,6 +58,7 @@ namespace Otrabotka.Systems
         private Vector3 _currentOffset;
         private float _dynamicX;
         private float _dynamicZ;
+        private float _dynamicY;
         private Vector3 _smoothVelocity;
 
         private Coroutine _moveRoutine;
@@ -72,6 +77,7 @@ namespace Otrabotka.Systems
             _currentOffset = _initialOffset;
             _dynamicX = 0f;
             _dynamicZ = 0f;
+            _dynamicY = 0f;
             _prevDir = 0f;
         }
 
@@ -124,13 +130,34 @@ namespace Otrabotka.Systems
             if (durationZ > 0f)
                 _dynamicZ = Mathf.Lerp(_dynamicZ, targetZ, Time.deltaTime / durationZ);
 
+            // плавное обновление Y-смещения: при движении возвращаем к 0, при idle-зуми поднимаем
+            float targetY;
+            float durationY;
+            if (_isMoving)
+            {
+                targetY = 0f;
+                durationY = movementZDuration * (smoothEnabled ? smoothingMultiplier : 1f);
+            }
+            else if (_standTimer >= standStillDelay)
+            {
+                targetY = zoomHeight;
+                durationY = zoomInDuration * (smoothEnabled ? smoothingMultiplier : 1f);
+            }
+            else
+            {
+                targetY = _dynamicY;
+                durationY = 1f;
+            }
+            if (durationY > 0f)
+                _dynamicY = Mathf.Lerp(_dynamicY, targetY, Time.deltaTime / durationY);
+
             _prevDir = dir;
         }
 
         void LateUpdate()
         {
             // целевое смещение от игрока без сглаживания
-            Vector3 targetOffset = _initialOffset + new Vector3(_dynamicX, 0f, _dynamicZ);
+            Vector3 targetOffset = _initialOffset + new Vector3(_dynamicX, _dynamicY, _dynamicZ);
             if (inertiaEnabled)
             {
                 // сглаживаем оффсет
