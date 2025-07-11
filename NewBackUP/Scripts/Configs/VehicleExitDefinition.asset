@@ -1,0 +1,51 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e7d33a746348f8f41b908d5c835dd75e, type: 3}
+  m_Name: VehicleExitDefinition
+  m_EditorClassIdentifier: 
+  id: VehicleExit
+  interactionType: 7
+  isRepeatable: 0
+  disableAfterUse: 1
+  dialogueAsset: {fileID: 0}
+  itemIdToGive: 
+  itemAmount: 1
+  itemIdsToSelect: []
+  newCharacterPrefab: {fileID: 6571871794463549171, guid: 43dceb80df8213b4eae7a9fc3e0efd0b, type: 3}
+  animationClips: []
+  animationDuration: 1
+  cutsceneName: 
+  isFinalEvent: 0
+  nestedInteractions: []
+  chunkScrollSpeedPositive: 7.5
+  chunkScrollSpeedNegative: 2
+  chunkScrollInertiaEnabled: 1
+  chunkScrollInertiaTime: 1
+  cameraSettings:
+    overrideSettings: 1
+    pushBackDistance: 2
+    pushBackDuration: 0.1
+    overshootDistance: 6
+    overshootDuration: 0.1
+    returnDuration: 0.1
+    standStillDelay: 0
+    zoomInDistance: 2
+    zoomInDuration: 3
+    smoothEnabled: 1
+    smoothingMultiplier: 1
+    zoomOutDuration: 1
+    movementZDistance: 1
+    movementZDuration: 1
+    zoomHeight: -1.25
+    inertiaEnabled: 1
+    smoothTime: 1
+  exitEventPrefab: {fileID: 5756949783541592888, guid: 47e2f9d56afbc7845984a0990b77f4c6, type: 3}

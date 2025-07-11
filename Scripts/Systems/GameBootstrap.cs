@@ -8,7 +8,7 @@ using Otrabotka.Core;
 namespace Otrabotka.Systems
 {
     /// <summary>
-    /// Точка входа: автоматически находит все менеджеры в сцене и управляет их жизненным циклом.
+    /// пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ: пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅ.
     /// </summary>
     public class GameBootstrap : MonoBehaviour
     {
@@ -18,10 +18,19 @@ namespace Otrabotka.Systems
 
         private void Awake()
         {
-            // Не уничтожать при смене сцены
+            // СЃРѕС…СЂР°РЅСЏРµРј СЃРІРѕР№ РѕР±СЉРµРєС‚ РјРµР¶РґСѓ Р·Р°РіСЂСѓР·РєР°РјРё СЃС†РµРЅ
             DontDestroyOnLoad(gameObject);
+            // Р—Р°РіСЂСѓР¶Р°РµРј РїСЂРѕРіСЂРµСЃСЃ РІР·Р°РёРјРѕРґРµР№СЃС‚РІРёР№ Рё СЃРѕР±С‹С‚РёР№
+            ScenarioSaveManager.LoadProgress();
+            // РРЅРёС†РёР°Р»РёР·Р°С†РёСЏ TransportController РґР»СЏ С†РµРЅС‚СЂР°Р»РёР·РѕРІР°РЅРЅРѕР№ РѕР±СЂР°Р±РѕС‚РєРё С‚СЂР°РЅСЃРїРѕСЂС‚Р°
+            if (TransportController.Instance == null)
+            {
+                var transportGO = new GameObject("TransportController");
+                transportGO.AddComponent<TransportController>();
+                DontDestroyOnLoad(transportGO);
+            }
 
-            // Автоматически собираем все компоненты-менеджеры
+            // СЃРѕР±РёСЂР°РµРј РІСЃРµ IInitializable, IUpdatable, IShutdownable
             var allBehaviours = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(
                 FindObjectsSortMode.None);
 
@@ -29,11 +38,11 @@ namespace Otrabotka.Systems
             _updatables = allBehaviours.OfType<IUpdatable>().ToList();
             _shutdownables = allBehaviours.OfType<IShutdownable>().ToList();
 
-            // Инициализируем всех менеджеров
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             foreach (var init in _initializables)
             {
                 try { init.Initialize(); }
-                catch (Exception ex) { Debug.LogError($"Ошибка инициализации {init.GetType().Name}: {ex}"); }
+                catch (Exception ex) { Debug.LogError($"пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ {init.GetType().Name}: {ex}"); }
             }
         }
 
@@ -43,7 +52,7 @@ namespace Otrabotka.Systems
             foreach (var upd in _updatables)
             {
                 try { upd.Tick(dt); }
-                catch (Exception ex) { Debug.LogError($"Ошибка Tick у {upd.GetType().Name}: {ex}"); }
+                catch (Exception ex) { Debug.LogError($"пїЅпїЅпїЅпїЅпїЅпїЅ Tick пїЅ {upd.GetType().Name}: {ex}"); }
             }
         }
 
@@ -52,7 +61,7 @@ namespace Otrabotka.Systems
             foreach (var shut in _shutdownables)
             {
                 try { shut.Shutdown(); }
-                catch (Exception ex) { Debug.LogError($"Ошибка Shutdown у {shut.GetType().Name}: {ex}"); }
+                catch (Exception ex) { Debug.LogError($"пїЅпїЅпїЅпїЅпїЅпїЅ Shutdown пїЅ {shut.GetType().Name}: {ex}"); }
             }
         }
 
@@ -68,11 +77,11 @@ namespace Otrabotka.Systems
 
         private void OnSceneLoaded(Scene scene, LoadSceneMode mode)
         {
-            // После загрузки новой сцены добавляем новых менеджеров
+            // пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ
             var newBehaviours = UnityEngine.Object.FindObjectsByType<MonoBehaviour>(
                 FindObjectsSortMode.None);
 
-            // Ищем компоненты, которых ещё нет
+            // пїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ, пїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅ пїЅпїЅпїЅ
             var newInits = newBehaviours.OfType<IInitializable>()
                 .Where(i => !_initializables.Contains(i));
             var newUps = newBehaviours.OfType<IUpdatable>()
@@ -80,12 +89,12 @@ namespace Otrabotka.Systems
             var newShuts = newBehaviours.OfType<IShutdownable>()
                 .Where(s => !_shutdownables.Contains(s));
 
-            // Добавление и инициализация новых
+            // пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅ
             foreach (var init in newInits)
             {
                 _initializables.Add(init);
                 try { init.Initialize(); }
-                catch (Exception ex) { Debug.LogError($"Ошибка инициализации {init.GetType().Name}: {ex}"); }
+                catch (Exception ex) { Debug.LogError($"пїЅпїЅпїЅпїЅпїЅпїЅ пїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅпїЅ {init.GetType().Name}: {ex}"); }
             }
             _updatables.AddRange(newUps);
             _shutdownables.AddRange(newShuts);

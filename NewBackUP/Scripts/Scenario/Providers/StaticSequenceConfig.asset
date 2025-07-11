@@ -1,0 +1,24 @@
+%YAML 1.1
+%TAG !u! tag:unity3d.com,2011:
+--- !u!114 &11400000
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 0}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 62324e2165f56dc45bf49ae336e8c154, type: 3}
+  m_Name: StaticSequenceConfig
+  m_EditorClassIdentifier: 
+  Days:
+  - DayNumber: 1
+    Sequence:
+    - Id: 1001
+      Duration: 1000
+      ResultData: '"result"'
+      HasSecondaryState: 0
+      TimeShiftOnFail: 2
+      PrimaryChunkPrefabId: 0
+      SecondaryChunkPrefabId: 0

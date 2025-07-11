@@ -29,6 +29,8 @@
         [SerializeField] private float firstHalfOrbitDuration = 18f;
         [Tooltip("Duration in hours for second half of sun orbit (e.g., 6)")]
         [SerializeField] private float secondHalfOrbitDuration = 6f;
+        [Tooltip("Дополнительный Y-офсет поворота солнца (градусы)")]
+        [SerializeField] private float sunRotationOffsetY = 0f;
 
         private float _currentHour;
         private float _lastRealtime;
@@ -86,10 +88,10 @@
                 angleX = (timeSinceDayStart / firstHalfOrbitDuration) * 180f;
             else
                 angleX = 180f + ((timeSinceDayStart - firstHalfOrbitDuration) / secondHalfOrbitDuration) * 180f;
-            // динамический поворот pivot: сохраняем исходную ориентацию и добавляем вращение по X
+            // динамический поворот pivot: сохраняем исходную ориентацию и добавляем вращение по X и Y
             if (sunPivot != null)
             {
-                sunPivot.localRotation = _pivotOriginalRotation * Quaternion.Euler(angleX, 0f, 0f);
+                sunPivot.localRotation = _pivotOriginalRotation * Quaternion.Euler(angleX, sunRotationOffsetY, 0f);
                 // SunLight как дочерний — позиция задаётся локально
                 SunLight.transform.localPosition = Vector3.forward * sunDistance;
                 SunLight.transform.localRotation = Quaternion.identity;
@@ -97,7 +99,7 @@
             else
             {
                 // без pivot — вращение вокруг мировых осей и позиция
-                Quaternion rotation = Quaternion.Euler(angleX, 170f, 0f);
+                Quaternion rotation = Quaternion.Euler(angleX, 170f + sunRotationOffsetY, 0f);
                 Vector3 center = Vector3.zero;
                 SunLight.transform.rotation = rotation;
                 SunLight.transform.position = center + rotation * Vector3.forward * sunDistance;
